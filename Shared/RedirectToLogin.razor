@@ -1,0 +1,16 @@
+﻿@inject NavigationManager Navigation
+
+<p>Redirecting to login...</p>
+
+@code {
+    private bool _navigated = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !_navigated)
+        {
+            _navigated = true;
+            Navigation.NavigateTo("/", true);
+        }
+    }
+}
