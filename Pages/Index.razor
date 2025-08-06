@@ -1,0 +1,400 @@
+﻿
+@attribute [Authorize]
+@using DonorSQLAgent.Authentication
+@using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage
+@using Microsoft.SemanticKernel
+@using Microsoft.AspNetCore.Components.Web
+@using System.Text.RegularExpressions
+@inject Kernel Kernel
+@inject ProtectedLocalStorage localStorage
+@inject IJSRuntime JS
+@using OpenAI.Chat
+@using System.Linq
+@using Microsoft.AspNetCore.Authorization
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+
+<PageTitle>Breakthrough T1D</PageTitle>
+@page "/Index"
+
+@* <div class="logout-container">
+    <button class="btn btn-outline-secondary logout-button" @onclick="Logout">Logout</button>
+</div> *@
+@if (!isChatStarted)
+{
+    <!-- Initial Welcome Screen -->
+    
+    <div class="container-fluid p-4">
+        <div class="d-flex justify-content-start">
+            <img src="breakthrough-logo.svg" alt="Breakthrough T1D Logo" style="height:75px;" />
+        </div>
+        <div style="background-color:white;height:77vh">
+        <div class="text-center my-4">
+            <h4 class="fw-bold" style="padding-top:80px">Data Pulse (BT1D)</h4>
+        </div>
+
+        <div class="d-flex justify-content-center">
+            <input @bind="userQuestionInput"
+            @bind:event="oninput"
+            @onkeydown="HandleKeyPress"
+            class="ask-question-input"
+            placeholder="Ask a Question" />
+        </div>
+        </div>
+    </div>
+    
+}
+else
+{
+    <!-- Full Chat Layout -->
+    <div class="chat-page">
+        <!-- Logo -->
+        <div class="p-3">
+            <img src="breakthrough-logo.svg" alt="Breakthrough T1D Logo" style="height:60px;" />
+        </div>
+
+        <!-- Chat Window -->
+        <div id="chatContainer" class="chat-container flex-grow-1">
+            @foreach (var message in chatHistory)
+            {
+                var role = message is AssistantChatMessage ? "assistant" :
+                message is UserChatMessage ? "user" : "system";
+                var text = string.Join("", message.Content.Select(c => c.Text));
+
+                <div class="chat-bubble @(role == "user" ? "user" : "bot") mb-3">
+                    <div class="bubble @(role == "assistant" ? "assistant-class" : "user-class")">
+                        <strong>@(role == "assistant" ? "Assistant" : "User"):</strong><br />
+                        @((MarkupString)text)
+                    </div>
+                </div>
+            }
+
+            @if (isTyping)
+            {
+                <div class="chat-bubble bot mb-2">
+                    <div class="bubble assistant-class text-muted">
+                        Bot is typing...
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Input -->
+        <div class="d-flex justify-content-center">
+            <input @bind="userQuestionInput"
+                   @bind:event="oninput"
+                   @onkeydown="HandleKeyPress"
+                   class="ask-question-input"
+                   placeholder="Ask a Question" />
+        </div>
+    </div>
+}
+
+
+<style>
+    .logout-container {
+        position: absolute;
+        top: 15px;
+        right: 20px;
+        z-index: 9999;
+    }
+
+    .logout-button {
+        font-size: 0.9rem;
+        padding: 5px 12px;
+        border-radius: 8px;
+        background-color: #002BFF;
+        color:white;
+    }
+
+    .ask-question-input {
+    width: 80%;
+    max-width: 800px;
+    padding: 20px;
+    font-size: 1.2rem;
+    border: 2px solid #002BFF !important;
+    border-radius: 10px;
+    outline:none;
+    }
+
+        .ask-question-input:focus {
+            border: 2px solid #002BFF !important;
+        }
+    .chat-page {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    }
+
+    .chat-container {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 20px;
+    background: #fff;
+    }
+
+    .chat-bubble {
+    display: flex;
+    margin-bottom: 10px;
+    }
+
+    .chat-bubble.user {
+    justify-content: flex-end;
+    }
+
+    .chat-bubble.bot {
+    justify-content: flex-start;
+    }
+
+    .bubble {
+    padding: 12px 16px;
+    border-radius: 12px;
+    max-width: 70%;
+    font-size: 1rem;
+    line-height: 1.4;
+    }
+
+    .user-class {
+    background: #056bff;
+    color: #fff;
+    }
+
+    .assistant-class {
+    background: #f0f6ff;
+    color: #0B1157;
+    }
+
+    .chat-input {
+    display: flex;
+    padding: 10px;
+    border-top: 1px solid #ccc;
+    }
+
+    .chat-input input {
+    flex-grow: 1;
+    border: 1px solid #ccc;
+    border-radius: 20px;
+    padding: 10px 15px;
+    font-size: 1rem;
+    margin-right: 10px;
+    }
+
+    .chat-input button {
+    background: #002BFF;
+    color: #fff;
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    }
+
+</style>
+
+@code {
+    /// <summary>
+       /// Stores the generated SQL query based on the user's question.
+       /// </summary>
+       private string generatedSql = "";
+
+       /// <summary>
+       /// Stores the JSON result returned from the executed SQL query.
+       /// </summary>
+       private string resultJson = "";
+
+       /// <summary>
+       /// Stores additional context information related to the user's question.
+       /// </summary>
+       private string contextInfo = "";
+
+       /// <summary>
+       /// Indicates whether the chat session has started.
+       /// </summary>
+       private bool isChatStarted = false;
+
+       /// <summary>
+       /// Stores the user's input question from the chat input field.
+       /// </summary>
+       string userQuestionInput = string.Empty;
+
+       /// <summary>
+       /// Maintains the history of chat messages exchanged between the user and the assistant.
+       /// </summary>
+       List<ChatMessage> chatHistory = new List<ChatMessage>();
+
+       /// <summary>
+       /// Indicates whether the assistant is currently typing a response.
+       /// </summary>
+       bool isTyping = false;
+
+       /// <summary>
+       /// Indicates whether the application is in dark mode.
+       /// </summary>
+       bool isDarkMode = false;
+
+       /// <summary>
+       /// Ensures that initialization logic is executed only once.
+       /// </summary>
+       bool hasInitialized = false;
+
+       /// <summary>
+       /// Determines whether the chat container should scroll to the bottom.
+       /// </summary>
+       private bool _shouldScroll = false;
+
+       /// <summary>
+       /// Logs the user out by marking them as logged out and navigating to the login page.
+       /// </summary>
+       private async Task Logout()
+       {
+           var authProvider = (CustomAuthStateProvider)AuthStateProvider;
+           await authProvider.MarkUserAsLoggedOut();
+           Navigation.NavigateTo("/login", true);
+       }
+
+       /// <summary>
+       /// Sends a predefined demo question to the assistant and processes the response.
+       /// </summary>
+       /// <param name="question">The demo question to be sent.</param>
+       private async Task SendDemoQuestion(string question)
+       {
+           isChatStarted = true;
+           userQuestionInput = question;
+           await AskQuestion();
+       }
+
+       /// <summary>
+       /// Executes logic after the component has rendered, including clearing chat history
+       /// and scrolling to the bottom of the chat container if necessary.
+       /// </summary>
+       /// <param name="firstRender">Indicates whether this is the first render of the component.</param>
+       protected override async Task OnAfterRenderAsync(bool firstRender)
+       {
+           await localStorage.DeleteAsync("chatHistory");
+           if (firstRender && !hasInitialized)
+           {
+               hasInitialized = true;
+               await localStorage.DeleteAsync("chatHistory");
+
+               chatHistory = new(); // start fresh
+               StateHasChanged();
+           }
+
+           if (_shouldScroll)
+           {
+               _shouldScroll = false;
+               await JS.InvokeVoidAsync("scrollToBottom", "chatContainer");
+           }
+       }
+
+       /// <summary>
+       /// Handles the "Enter" key press event in the chat input field to trigger the AskQuestion method.
+       /// </summary>
+       /// <param name="e">The keyboard event arguments.</param>
+       private async Task HandleKeyPress(KeyboardEventArgs e)
+       {
+           if (e.Key == "Enter")
+           {
+               await AskQuestion();
+           }
+       }
+
+
+    private async Task AskQuestion()   // Method to handle user's question asynchronously
+    {
+        try  // Start exception handling
+        {
+            isChatStarted = true;  // Mark chat as started
+
+            // Get plugin function to retrieve context information related to the question
+            var contextFunc = Kernel.Plugins.GetFunction("SQLAgent", "GetContextAsync");
+            // Get plugin function to save context after processing
+            var saveFunc = Kernel.Plugins.GetFunction("SQLAgent", "SaveContextAsync");
+            // Get plugin function to generate SQL query from the question
+            var genSql = Kernel.Plugins.GetFunction("SQLAgent", "GenerateSqlAsync");
+            // Get plugin function to execute SQL query
+            var execSql = Kernel.Plugins.GetFunction("SQLAgent", "ExecuteSqlAsync");
+            // Get plugin function to generate a human-readable answer from SQL results
+            var genAns = Kernel.Plugins.GetFunction("SQLAgent", "GenerateAnsAsync");
+            // Get plugin function to log user's query and answer
+            var addUserLogAsync = Kernel.Plugins.GetFunction("SQLAgent", "AddUserLogAsync");
+
+            // Get plugin function to fetch semantically closest matching query from embeddings
+            var getEmbeddedData = Kernel.Plugins.GetFunction("SQL_Postgres", "GetClosestQuery");
+
+            var question = userQuestionInput;  // Take question input from user textbox
+
+            // Add user message to chat history for display
+            chatHistory.Add(new UserChatMessage(question));
+
+            userQuestionInput = string.Empty;  // Clear user input textbox after sending
+
+            isTyping = true;  // Show typing indicator in UI
+            StateHasChanged();  // Refresh UI to show typing indicator
+            await Task.Delay(100);  // Add a small delay to allow UI update
+
+            // Call plugin to get context information based on user's question
+            var ctx = await Kernel.InvokeAsync(contextFunc, new() { ["question"] = question });
+            contextInfo = ctx.ToString();  // Save context information as string
+
+            // Find the closest query from previously embedded queries using semantic search
+            var closestQuery = await Kernel.InvokeAsync(getEmbeddedData, new() { ["userQuestion"] = question });
+
+            // Generate SQL query using AI based on user's question and closest matching query
+            var sql = await Kernel.InvokeAsync(genSql, new()
+                {
+                    ["userQuestion"] = question,
+                    ["closestQuery"] = closestQuery.ToString()
+                });
+
+            var sqlQuery = sql.GetValue<string>() ?? string.Empty;  // Get generated SQL string safely
+
+            // Use Regex to extract SQL code from markdown-style code block (```sql ... ```)
+            var match = Regex.Match(sqlQuery, "```sql\\s*(.*?)```", RegexOptions.Singleline | RegexOptions.IgnoreCase);
+            var cleanedSql = match.Success ? match.Groups[1].Value.Trim() : sqlQuery;  // Clean the SQL if code block exists
+
+            generatedSql = cleanedSql;  // Store cleaned SQL for display/logging
+
+            // Execute the generated SQL query using database plugin
+            var result = await Kernel.InvokeAsync(execSql, new() { ["sql"] = cleanedSql });
+
+            // Generate final human-friendly answer using AI, based on question and SQL result
+            var result1 = await Kernel.InvokeAsync(genAns, new()
+                {
+                    ["userQuestion"] = question,
+                    ["Ans"] = result.ToString()
+                });
+
+            resultJson = result1.ToString();  // Convert AI answer to string for display
+
+            // Add AI's final answer message to chat history
+            chatHistory.Add(new AssistantChatMessage(resultJson));
+
+            // Save context (question and generated SQL) using plugin
+            await Kernel.InvokeAsync(saveFunc, new() { ["question"] = question, ["sql"] = generatedSql });
+
+            // Add user log entry (for auditing/logging purposes)
+            await Kernel.InvokeAsync(addUserLogAsync, new()
+                {
+                    ["userQuestion"] = question,
+                    ["finalSql"] = generatedSql,
+                    ["answer"] = resultJson,
+                    ["cleanedSql"] = cleanedSql
+                });
+
+            isTyping = false;  // Stop typing indicator
+            _shouldScroll = true;  // Enable auto-scroll to bottom of chat
+            StateHasChanged();  // Refresh UI to show new messages
+        }
+        catch (Exception ex)  // If any error occurs
+        {
+            // Add a fallback message when AI or database fails
+            chatHistory.Add(new AssistantChatMessage(" I'm not able to help with that request at the moment."));
+            isTyping = false;  // Stop typing indicator
+            _shouldScroll = true;  // Enable auto-scroll
+            StateHasChanged();  // Refresh UI
+        }
+    }
+
+
+   
+}

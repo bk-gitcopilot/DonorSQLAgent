@@ -1,0 +1,109 @@
+﻿@page "/"
+@using DonorSQLAgent.Authentication
+@using System.ComponentModel.DataAnnotations
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+<PageTitle>Breakthrough T1D</PageTitle>
+<div class="login-page d-flex flex-column align-items-center justify-content-center vh-100">
+    <!-- Logo -->
+    <div class="mb-4 text-center">
+        <img src="breakthrough-logo.svg" alt="Breakthrough T1D Logo" style="height:80px;" />
+    </div>
+
+    <!-- Login Card -->
+    <div class="card shadow-sm p-4 login-card">
+        <h4 class="text-center mb-3">Sign In</h4>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger">@errorMessage</div>
+        }
+
+        <EditForm Model="@loginModel" OnValidSubmit="@HandleLogin">
+            <DataAnnotationsValidator />
+            <ValidationSummary />
+
+            <div class="mb-3">
+                <label for="username" class="form-label">Username</label>
+                <InputText id="username" class="form-control" @bind-Value="loginModel.Username" />
+            </div>
+
+            <div class="mb-3">
+                <label for="password" class="form-label">Password</label>
+                <InputText id="password" type="password" class="form-control" @bind-Value="loginModel.Password" />
+            </div>
+
+            <div class="d-grid">
+                <button type="submit" class="btn btn-primary">Login</button>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+<style>
+    .login-page {
+        background: #f5f7fb;
+    }
+
+    .login-card {
+        width: 100%;
+        max-width: 400px;
+        border-radius: 12px;
+    }
+
+    .btn-primary {
+        background-color: #002BFF;
+        border: none;
+    }
+
+        .btn-primary:hover {
+            background-color: #002BFF;
+        }
+</style>
+
+@code {
+    /// <summary>
+       /// Represents the login model containing the username and password fields.
+       /// </summary>
+       private LoginModel loginModel = new();
+
+       /// <summary>
+       /// Stores the error message to display when login fails.
+       /// </summary>
+       private string errorMessage = string.Empty;
+
+       /// <summary>
+       /// Handles the login process when the form is submitted.
+       /// Validates the username and password, and navigates to the index page if successful.
+       /// Displays an error message if the credentials are invalid.
+       /// </summary>
+       private async Task HandleLogin()
+       {
+           if (loginModel.Username == "admin" && loginModel.Password == "bt1dapp#$%@")
+           {
+               var authProvider = (CustomAuthStateProvider)AuthStateProvider;
+               await authProvider.MarkUserAsAuthenticated(loginModel.Username);
+               Navigation.NavigateTo("/index");
+           }
+           else
+           {
+               errorMessage = "Invalid username or password.";
+           }
+       }
+
+       /// <summary>
+       /// Represents the model for login containing validation attributes for the username and password fields.
+       /// </summary>
+       public class LoginModel
+       {
+           /// <summary>
+           /// Gets or sets the username for login. This field is required.
+           /// </summary>
+           [Required] public string Username { get; set; } = string.Empty;
+
+           /// <summary>
+           /// Gets or sets the password for login. This field is required.
+           /// </summary>
+           [Required] public string Password { get; set; } = string.Empty;
+       }
+}
