@@ -22,8 +22,8 @@ builder.Services.AddServerSideBlazor();
 var kernelBuilder = Kernel.CreateBuilder();
 kernelBuilder.AddAzureOpenAIChatCompletion(
    deploymentName: "jdrf-gpt-4o-mini",
-    endpoint: "https://jdrf-poc-openai.openai.azure.com/",
-    apiKey: "DE1unyjOBXJm24VUnAQrTwoHFAQkLGHjbGwqWCIkRaQFjWiq9QDZJQQJ99BGACYeBjFXJ3w3AAABACOGj9Zm");
+    endpoint: "XXXXXXXXXXXXXXX",
+    apiKey: "XXXXXXXXXXXXXXXXXX");
 
 // Build the SK Kernel
 var kernel = kernelBuilder.Build();
@@ -31,7 +31,7 @@ var kernel = kernelBuilder.Build();
 // --- Database + Cache setup for plugin ---
 var env = builder.Environment;
 var wwwRootPath = env.WebRootPath;
-var dbSqlConnection = new SqlConnection(@"Server=bks.eastus.cloudapp.azure.com,51717;Database=BT1D_Database;User Id=sa;Password=BKsQl2O!6;TrustServerCertificate=True;");
+var dbSqlConnection = new SqlConnection(@"XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX");
 //var dbConnection = new SqliteConnection($@"Data Source={wwwRootPath}\SQLLite_DB\donation_database.db");
 var cache = new MemoryCache(new MemoryCacheOptions());
 
@@ -41,7 +41,7 @@ builder.Services.AddAuthorizationCore();
 builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthStateProvider>();
 
 // --- Register Postgres DbContext as Factory ---
-string postgresConnectionString = "Host=jdrfpoc-dbserver.postgres.database.azure.com;Port=5432;Username=jdrfdbserver;Password=JDServer@2025;Database=vector_queries";
+string postgresConnectionString = "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX";
 builder.Services.AddDbContextFactory<AppDbContext>(options =>
     options.UseNpgsql(postgresConnectionString,o => o.UseVector()));   // <-- important
 
