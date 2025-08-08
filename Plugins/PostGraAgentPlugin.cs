@@ -144,9 +144,9 @@ namespace DonorSQLAgent.Plugins
             ReadOnlyMemory<float> vector;
             try
             {
-                Uri oaiEndpoint = new("https://aika365qa-openai.openai.azure.com/");
-                string oaiKey = "5UIjTydB0Er5wSBOQIORzZ7FYYDadrRVmObBrYIq4fE84xb9tvR2JQQJ99AKACYeBjFXJ3w3AAABACOGP5RS";
-                string embeddingModelName = "aika365QA-embedding-model";
+                Uri oaiEndpoint = new("XXXXXXXXXXXXXXXXX");
+                string oaiKey = "XXXXXXXXXXXXXXXXXXXXX";
+                string embeddingModelName = "XXXXXXXXXXXXXXXXXX";
                 AzureOpenAIClient azureClient = new(oaiEndpoint, new AzureKeyCredential(oaiKey));
                 EmbeddingClient embeddingClient = azureClient.GetEmbeddingClient(embeddingModelName);
                 var result = embeddingClient.GenerateEmbedding(textData);
@@ -162,3 +162,4 @@ namespace DonorSQLAgent.Plugins
 
     }
 }
+
