@@ -8,6 +8,8 @@ using DonorSQLAgent.Authentication;
 using Npgsql;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Data.SqlClient;
+
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -29,7 +31,8 @@ var kernel = kernelBuilder.Build();
 // --- Database + Cache setup for plugin ---
 var env = builder.Environment;
 var wwwRootPath = env.WebRootPath;
-var dbConnection = new SqliteConnection($@"Data Source={wwwRootPath}\SQLLite_DB\donation_database.db");
+var dbSqlConnection = new SqlConnection(@"Server=bks.eastus.cloudapp.azure.com,51717;Database=BT1D_Database;User Id=sa;Password=BKsQl2O!6;TrustServerCertificate=True;");
+//var dbConnection = new SqliteConnection($@"Data Source={wwwRootPath}\SQLLite_DB\donation_database.db");
 var cache = new MemoryCache(new MemoryCacheOptions());
 
 // --- Register Kernel & Auth ---
@@ -38,14 +41,15 @@ builder.Services.AddAuthorizationCore();
 builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthStateProvider>();
 
 // --- Register Postgres DbContext as Factory ---
+string postgresConnectionString = "Host=jdrfpoc-dbserver.postgres.database.azure.com;Port=5432;Username=jdrfdbserver;Password=JDServer@2025;Database=vector_queries";
 builder.Services.AddDbContextFactory<AppDbContext>(options =>
-    options.UseNpgsql(
-        builder.Configuration.GetConnectionString("DefaultConnection"),
-        o => o.UseVector()));   // <-- important
+    options.UseNpgsql(postgresConnectionString,o => o.UseVector()));   // <-- important
 
 // --- Register Plugins as Singletons ---
-builder.Services.AddSingleton<SQLAgentPlugin>(sp =>
-    new SQLAgentPlugin(dbConnection, kernel, cache));
+//builder.Services.AddSingleton<SQLAgentPlugin>(sp =>
+//    new SQLAgentPlugin(dbConnection, kernel, cache));
+builder.Services.AddSingleton<SQLServerAgentPlugin>(sp =>
+    new SQLServerAgentPlugin(dbSqlConnection, kernel, cache));
 
 builder.Services.AddSingleton<PostGraAgentPlugin>(sp =>
 {
@@ -58,10 +62,12 @@ var app = builder.Build();
 // === Register plugins to kernel after DI is built ===
 using (var scope = app.Services.CreateScope())
 {
+    var sqlServerAgentPlugin = scope.ServiceProvider.GetRequiredService<SQLServerAgentPlugin>();
     var sqlAgentPlugin = scope.ServiceProvider.GetRequiredService<SQLAgentPlugin>();
     var postGraAgentPlugin = scope.ServiceProvider.GetRequiredService<PostGraAgentPlugin>();
 
     kernel.Plugins.AddFromObject(sqlAgentPlugin, "SQLAgent");
+    kernel.Plugins.AddFromObject(sqlServerAgentPlugin, "SQL_Server_Agent");
     kernel.Plugins.AddFromObject(postGraAgentPlugin, "SQL_Postgres");
 }
 
