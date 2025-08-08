@@ -305,18 +305,31 @@ else
         {
             isChatStarted = true;  // Mark chat as started
 
+            // // Get plugin function to retrieve context information related to the question
+            // var contextFunc = Kernel.Plugins.GetFunction("SQLAgent", "GetContextAsync");
+            // // Get plugin function to save context after processing
+            // var saveFunc = Kernel.Plugins.GetFunction("SQLAgent", "SaveContextAsync");
+            // // Get plugin function to generate SQL query from the question
+            // var genSql = Kernel.Plugins.GetFunction("SQLAgent", "GenerateSqlAsync");
+            // // Get plugin function to execute SQL query
+            // var execSql = Kernel.Plugins.GetFunction("SQLAgent", "ExecuteSqlAsync");
+            // // Get plugin function to generate a human-readable answer from SQL results
+            // var genAns = Kernel.Plugins.GetFunction("SQLAgent", "GenerateAnsAsync");
+            // // Get plugin function to log user's query and answer
+            // var addUserLogAsync = Kernel.Plugins.GetFunction("SQLAgent", "AddUserLogAsync");
+
             // Get plugin function to retrieve context information related to the question
-            var contextFunc = Kernel.Plugins.GetFunction("SQLAgent", "GetContextAsync");
+            var contextFunc = Kernel.Plugins.GetFunction("SQL_Server_Agent", "GetContextAsync");
             // Get plugin function to save context after processing
-            var saveFunc = Kernel.Plugins.GetFunction("SQLAgent", "SaveContextAsync");
+            var saveFunc = Kernel.Plugins.GetFunction("SQL_Server_Agent", "SaveContextAsync");
             // Get plugin function to generate SQL query from the question
-            var genSql = Kernel.Plugins.GetFunction("SQLAgent", "GenerateSqlAsync");
+            var genSql = Kernel.Plugins.GetFunction("SQL_Server_Agent", "GenerateSqlAsync");
             // Get plugin function to execute SQL query
-            var execSql = Kernel.Plugins.GetFunction("SQLAgent", "ExecuteSqlAsync");
+            var execSql = Kernel.Plugins.GetFunction("SQL_Server_Agent", "ExecuteSqlAsync");
             // Get plugin function to generate a human-readable answer from SQL results
-            var genAns = Kernel.Plugins.GetFunction("SQLAgent", "GenerateAnsAsync");
+            var genAns = Kernel.Plugins.GetFunction("SQL_Server_Agent", "GenerateAnsAsync");
             // Get plugin function to log user's query and answer
-            var addUserLogAsync = Kernel.Plugins.GetFunction("SQLAgent", "AddUserLogAsync");
+            var addUserLogAsync = Kernel.Plugins.GetFunction("SQL_Server_Agent", "AddUserLogAsync");
 
             // Get plugin function to fetch semantically closest matching query from embeddings
             var getEmbeddedData = Kernel.Plugins.GetFunction("SQL_Postgres", "GetClosestQuery");
@@ -372,14 +385,14 @@ else
             // Save context (question and generated SQL) using plugin
             await Kernel.InvokeAsync(saveFunc, new() { ["question"] = question, ["sql"] = generatedSql });
 
-            // Add user log entry (for auditing/logging purposes)
-            await Kernel.InvokeAsync(addUserLogAsync, new()
-                {
-                    ["userQuestion"] = question,
-                    ["finalSql"] = generatedSql,
-                    ["answer"] = resultJson,
-                    ["cleanedSql"] = cleanedSql
-                });
+            // // Add user log entry (for auditing/logging purposes)
+            // await Kernel.InvokeAsync(addUserLogAsync, new()
+            //     {
+            //         ["userQuestion"] = question,
+            //         ["finalSql"] = generatedSql,
+            //         ["answer"] = resultJson,
+            //         ["cleanedSql"] = cleanedSql
+            //     });
 
             isTyping = false;  // Stop typing indicator
             _shouldScroll = true;  // Enable auto-scroll to bottom of chat
