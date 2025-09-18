@@ -1,0 +1,24 @@
+# Build artifacts
+bin/
+obj/
+
+# User-specific files
+*.user
+*.userosscache
+*.sln.docstates
+
+# Visual Studio
+.vs/
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# NuGet packages
+packages/
+*.nupkg
+*.snupkg
+
+# Local settings
+appsettings.Development.json
